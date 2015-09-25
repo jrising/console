@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>Console</title>
+  <link rel="stylesheet" type="text/css" href="style.css" media="screen" title="Default" />
+
+  <!--<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>-->
+  <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+  <script type="text/javascript" src="js/jquery.hotkeys-0.7.9.js"></script>
+  <script type="text/javascript" src="js/jquery.browser.js"></script>
+  <script type="text/javascript" src="js/jquery.konami.js"></script>
+  <script type="text/javascript" src="js/jquery.websocket-0.0.1.js"></script>
+  <script type="text/javascript" src="js/jquery.json-2.4.js"></script>
+  <script type="text/javascript" src="js/cli.js"></script>
+  <script type="text/javascript" src="js/shell.js"></script>
+  <script type="text/javascript" src="js/susdev.js"></script>
+  <script type="text/javascript" src="js/xkcd.js"></script>
+  <script type="text/javascript" src="js/mochilite.js"></script>
+  <script type="text/javascript" src="js/javascript.js"></script>
+ </head>
+ <body>
+  <div id="pagealert" title="Press any key for next page of text"> --More-- </div>
+  <div id="screen">
+   <div id="display">
+    <div id="welcome">
+      <h1>Console</h1>
+    </div>
+    <noscript>
+      <p>Sorry, the CLI requires JavaScript to work. Please turn on JavaScript, or try the <a href="/1/">GUI Interface</a>.</p>
+    </noscript>
+   </div>
+   <div id="bottomline">
+    <span id="inputline"><span id="prompt"></span><span id="lcommand"></span><span id="cursor" >&nbsp;</span><span id="rcommand"></span></span><span id="spinner"></span>
+    <div id="commandbox" style="display: none">
+      <textarea id="longcommand" rows="4" cols="80"></textarea>
+    </div>
+   </div>
+  </div>
+  <div id="credit">Based on XKCD CLI: <a href="http://github.com/chromakode/xkcdfools">Source code</a>.</div>
+  <p style="text-align: right">Available frameworks: <a href="#" onclick="Terminal.runCommand('j:'); return false;">Javascript</a>, <a href="#" onclick="Terminal.runCommand('x:'); return false;">XKCD Shell</a>.</p>
+ </body>
+</html>
+
