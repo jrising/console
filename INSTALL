@@ -1,0 +1,7 @@
+To install your own console, you need to do the following:
+
+* Put all the code on a webserver with PHP, pointed to the html/ directory.
+
+* Create a MySQL database, with the commands in create.sql.
+
+* Change the html/ss/config.php file to match your database configuration.
