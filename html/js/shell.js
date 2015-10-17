@@ -15,6 +15,9 @@ var ShellProcess = {
                         password: password
                     },
                     success: self.handlelogin(terminal, username, function() { self.init(terminal); })
+                }).fail(function() {
+                    terminal.print("Failed to connect to serve.  Consider blank for guest.");
+                    self.init(terminal);
                 });
             });
         }
@@ -123,6 +126,9 @@ var ShellProcess = {
                 }
                 callback(terminal);
             }
+        }).fail(function() {
+            terminal.print("Failed to load links from server.");
+            callback(terminal);
         });
     },
 
