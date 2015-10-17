@@ -418,6 +418,25 @@ ShellProcess.commands['su'] = function(terminal, path) {
     }
 };
 
+function gettext(terminal, prompt, callback) {
+    var oldprompt = terminal.setPrompt(prompt);
+    var allcontent = '';
+
+    terminal.inputConsumer = function(terminal, content) {
+      if (content == null) {
+          callback(allcontent);
+        terminal.inputConsumer = null;
+        terminal.setPrompt(oldprompt);
+      } else {
+        this.print($('<p>').addClass('command').text(this.config.prompt + content));
+        if (allcontent)
+          allcontent += "\n";
+        allcontent += content;
+      }
+    };
+}
+
+
 ShellProcess.commands['reddit'] = function(terminal, num) {
 	num = Number(num);
 	if (num) {
@@ -443,6 +462,32 @@ ShellProcess.commands['wget'] = ShellProcess.commands['curl'] = function(termina
 	} else {
 		terminal.print("Please specify a URL.");
 	}
+};
+
+ShellProcess.commands['telnet'] = function(terminal) {
+  var args = Array.prototype.slice.call(arguments);
+  args.shift(); // terminal
+  var ipp = args.shift(); // like existencia.org:9999
+
+  var conn = new WebSocket("ws://" + ipp + "/");
+  conn.onopen = function(e) {
+      terminal.print("Connection established!");
+  };
+  conn.onmessage = function(e) {
+      terminal.print(e.data);
+  };
+
+  var oldprompt = terminal.setPrompt('telnet> ');
+
+  terminal.inputConsumer = function(terminal, content) {
+      if (content == null) {
+        terminal.inputConsumer = null;
+        terminal.setPrompt(oldprompt);
+      } else {
+        this.print($('<p>').addClass('command').text(this.config.prompt + content));
+        conn.send(content);
+      }
+    };
 };
 
 ShellProcess.commands['write'] =
