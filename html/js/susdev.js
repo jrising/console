@@ -60,3 +60,59 @@ ShellProcess.commands['sda'] = function(terminal) {
 
     }
 };
+
+ShellProcess.commands['tzconv'] = function(terminal) {
+    // Time is assumed to be in this timezone
+	var cmd_args = Array.prototype.slice.call(arguments);
+	cmd_args.shift(); // terminal
+
+    // Parse it
+    var time = moment(cmd_args[0]);
+    if (!time.isValid()) {
+        time = moment(moment().format("YYYY-MM-DD ") + cmd_args[0]);
+        if (!time.isValid()) {
+            throw "Unrecognized date.";
+        }
+    }
+
+    // Convert it
+    var tzname = getTimezone(cmd_args[1], terminal);
+    var format = "YYYY-MM-DD HH:mm:ss Z";
+    terminal.print(time.tz(tzname).format(format));
+};
+
+ShellProcess.commands['tzback'] = function(terminal) {
+    // Time is assumed to be in another timezone
+	var cmd_args = Array.prototype.slice.call(arguments);
+	cmd_args.shift(); // terminal
+
+    var tzname = getTimezone(cmd_args[1], terminal);
+
+    // Parse it
+    var time = moment.tz(cmd_args[0], tzname);
+    if (!time.isValid()) {
+        time = moment.tz(moment().format("YYYY-MM-DD ") + cmd_args[0], tzname);
+        if (!time.isValid()) {
+            throw "Unrecognized date.";
+        }
+    }
+
+    // Get the current timezone
+    var tzhere = jstz.determine().name();
+
+    // Convert it
+    var format = "YYYY-MM-DD HH:mm:ss Z";
+    terminal.print(time.tz(tzhere).format(format));
+};
+
+function getTimezone(name, terminal) {
+    var alltz = moment.tz.names();
+    if ($.inArray(name, alltz) != -1)
+        return name;
+
+    var fuse = new Fuse(alltz);
+    var best = fuse.search(name);
+    if (terminal)
+        terminal.print("Using " + alltz[best[0]] + ".");
+    return alltz[best[0]];
+}
