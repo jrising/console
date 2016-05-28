@@ -1,8 +1,29 @@
-import sys, os, cmd, csv, urllib, subprocess
+import sys, os, cmd, csv, urllib, subprocess, psutil
 from sandbox import Sandbox
+
+try:
+    from computer.local_server import LocalServer, LocalProcess
+    from computer.linux_server import RemoteLinuxProcess
+
+    local_server = LocalServer('localhost', 1, {})
+    local_command = local_server.run_command
+
+    has_computer = True
+except:
+    print "computer module not found!  Suggest installing from http://github.com/jrising/computer"
+    local_command = os.system
+    has_computer = False
 
 dictionary = {}
 commands = {}
+liveprocs = set()
+
+ignoreapps = ['/System/', '/usr/', '/Library/', '/Applications/Google Chrome.app/',
+              '/Applications/Preview.app/', '/Applications/Dropbox.app/', '-bash',
+              '/Applications/VMware Fusion.app/', '/Applications/Utilities/Terminal.app/',
+              '/bin/bash ./co', '/Users/jrising/Library/Application Support/']
+
+fallbacks = {'ar': "mono /Users/jrising/projects/debased/ActionReaction/tool/Single/Single/bin/Release/Single.exe"}
 
 with open('dictionary.csv', 'r') as fp:
     reader = csv.reader(fp)
@@ -40,6 +61,50 @@ class PersonalCmd(cmd.Cmd, object):
     def do_cd(self, path):
         os.chdir(path)
         self.reset_prompt()
+
+    def do_pr(self, pid):
+        """Start tracking a process by PID"""
+        if not has_computer:
+            print "Failed: computer module missing."
+            return
+
+        if pid == '':
+            for pid in psutil.pids():
+                proc = psutil.Process(pid)
+                if proc.status() == 'running':
+                    try:
+                        app = proc.cmdline()[0]
+                        ignore = False
+                        for ignoreapp in ignoreapps:
+                            if app[:len(ignoreapp)] == ignoreapp:
+                                ignore = True
+                                break
+
+                        if ignore:
+                            continue
+
+                        fullline = "%5d %s" % (pid, ' '.join(proc.cmdline()))
+                        print fullline[:80]
+                    except:
+                        pass
+        if pid == 'halt':
+            drops = []
+            for proc in liveprocs:
+                if not proc.is_running():
+                    drops.append(drops)
+                else:
+                    print proc
+                    proc.halt()
+
+            liveprocs.difference_update(drops)
+        elif pid == 'resume':
+            for proc in liveprocs:
+                proc.resume()
+        elif pid == 'st':
+            for proc in liveprocs:
+                print proc, proc.is_running()
+        else:
+            liveprocs.add(RemoteLinuxProcess(local_server, int(pid), None))
 
     def do_shell(self, command):
         """Responds to !<command> by executing shell."""
@@ -113,9 +178,13 @@ EOD""" % (urllib.quote(search)))
             line = commands[line]
             print line
 
-        r = super(PersonalCmd, self).onecmd(line)
-        if r:
-            r = raw_input('really exit? (y/n):') == 'y'
+        try:
+            r = super(PersonalCmd, self).onecmd(line)
+            if r:
+                r = raw_input('really exit? (y/n):') == 'y'
+        except Exception as e:
+            r = False
+            print e
 
         self.lastline = line
         return r
@@ -123,10 +192,22 @@ EOD""" % (urllib.quote(search)))
     def default(self, line):
         try:
             print "py: " + str(eval(line))
+            return
         except:
-            p = subprocess.Popen(line.split(), stdout=subprocess.PIPE)
+            pass
+
+        for fallback in fallbacks:
+            tokens = fallbacks[fallback].split()
+            tokens.extend(line.split())
+            p = subprocess.Popen(tokens, stdout=subprocess.PIPE)
             output, errors = p.communicate()
-            print "sh: " + output
+            if output:
+                print fallback + ": " + output
+                return
+
+        p = subprocess.Popen(line.split(), stdout=subprocess.PIPE)
+        output, errors = p.communicate()
+        print "sh: " + output
 
     def completedefault(self, text, line, begidx, endidx):
         results = []
