@@ -201,6 +201,7 @@ EOD""" % (urllib.quote(search)))
             tokens.extend(line.split())
             p = subprocess.Popen(tokens, stdout=subprocess.PIPE)
             output, errors = p.communicate()
+            output = output.strip()
             if output:
                 print fallback + ": " + output
                 return
