@@ -1,18 +1,15 @@
 import sys, os, cmd, csv, urllib, subprocess, psutil
 from sandbox import Sandbox
 
-try:
-    from computer.local_server import LocalServer, LocalProcess
-    from computer.linux_server import RemoteLinuxProcess
-
-    local_server = LocalServer('localhost', 1, {})
-    local_command = local_server.run_command
-
-    has_computer = True
-except:
-    print "computer module not found!  Suggest installing from http://github.com/jrising/computer"
-    local_command = os.system
-    has_computer = False
+if sys.platform in ['linux', 'linux2']:
+    import x_server
+    local_server = x_server.XLocalServer()
+elif sys.platform == 'darwin':
+    import macos_server
+    local_server = macos_server.MacOSLocalServer()
+else:
+    import gui_server
+    local_server = gui_server.GUILocalServer()
 
 dictionary = {}
 commands = {}
@@ -75,10 +72,6 @@ class PersonalCmd(cmd.Cmd, object):
 
     def do_pr(self, pid):
         """Start tracking a process by PID"""
-        if not has_computer:
-            print "Failed: computer module missing."
-            return
-
         if pid == '':
             for pid in psutil.pids():
                 proc = psutil.Process(pid)
@@ -115,7 +108,7 @@ class PersonalCmd(cmd.Cmd, object):
             for proc in liveprocs:
                 print proc, proc.is_running()
         else:
-            liveprocs.add(RemoteLinuxProcess(local_server, int(pid), None))
+            liveprocs.add(local_server.get_process(pid))
 
     def do_shell(self, command):
         """Responds to !<command> by executing shell."""
@@ -126,34 +119,22 @@ class PersonalCmd(cmd.Cmd, object):
         if command in dictionary:
             command = "cd " + dictionary[command]
 
-        os.system("""osascript <<EOD
-tell application "Terminal"
-    do script "%s"
-    activate
-end tell
-EOD""" % (command))
+        local_server.open_terminal(command)
 
     def do_ssh(self, where):
         """Ssh to a known location."""
         if where in dictionary:
-            os.system("""osascript <<EOD
-tell application "Terminal"
-    do script "ssh %s"
-    activate
-end tell
-EOD""" % (dictionary[where]))
+            local_server.open_terminal("ssh " + dictionary[where])
         else:
             print "Unrecognized: ssh: " + where
 
-    def do_open(self, app):
+    def do_open(self, thing):
         """Open an application or a file, as with the Finder."""
-        if app[0] != '/':
-            app = "/Applications/" + app
-        os.system("open " + app)
+        local_server.open_thing(thing)
 
     def complete_open(self, text, line, begidx, endidx):
         apps = []
-        for app in os.listdir("/Applications"):
+        for app in local_server.list_applications():
             if app[:len(text)].lower() == text.lower():
                 apps.append(app)
 
@@ -164,20 +145,12 @@ EOD""" % (dictionary[where]))
         os.system("open ~/Downloads/stan-reference-2.1.0.pdf")
 
     def do_goog(self, search):
-        os.system("""osascript <<EOD
-tell application "Google Chrome"
-    open location "http://www.google.com/search?q=%s"
-end tell
-EOD""" % (urllib.quote(search)))
+        local_server.open_url("http://www.google.com/search?q=" + urllib.quote(search))
 
     def do_get(self, link):
         if link in dictionary:
             link = dictionary[link]
-        os.system("""osascript <<EOD
-tell application "Google Chrome"
-    open location "%s"
-end tell
-EOD""" % (link))
+        local_server.open_url(link)
 
     def do_r(self, check):
         print check
