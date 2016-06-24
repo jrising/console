@@ -16,6 +16,7 @@ except:
 
 dictionary = {}
 commands = {}
+reminders = {}
 liveprocs = set()
 
 ignoreapps = ['/System/', '/usr/', '/Library/', '/Applications/Google Chrome.app/',
@@ -36,6 +37,16 @@ with open('commands.csv', 'r') as fp:
     header = reader.next()
     for row in reader:
         commands[row[0]] = row[1]
+
+with open('reminders.csv', 'r') as fp:
+    reader = csv.reader(fp)
+    header = reader.next()
+    for row in reader:
+        reminders[row[0]] = row[1]
+
+for script in os.listdir("applescript"):
+    if script[-5:] == '.scpt':
+        commands[script[:-5].replace('-', ' ')] = "!osascript < applescript/" + script
 
 class bcolors:
     HEADER = '\033[95m'
@@ -134,6 +145,20 @@ EOD""" % (dictionary[where]))
         else:
             print "Unrecognized: ssh: " + where
 
+    def do_open(self, app):
+        """Open an application or a file, as with the Finder."""
+        if app[0] != '/':
+            app = "/Applications/" + app
+        os.system("open " + app)
+
+    def complete_open(self, text, line, begidx, endidx):
+        apps = []
+        for app in os.listdir("/Applications"):
+            if app[:len(text)].lower() == text.lower():
+                apps.append(app)
+
+        return apps
+
     def do_stan(self, cmd):
         """stan help: open up the stan reference manual."""
         os.system("open ~/Downloads/stan-reference-2.1.0.pdf")
@@ -144,6 +169,15 @@ tell application "Google Chrome"
     open location "http://www.google.com/search?q=%s"
 end tell
 EOD""" % (urllib.quote(search)))
+
+    def do_get(self, link):
+        if link in dictionary:
+            link = dictionary[link]
+        os.system("""osascript <<EOD
+tell application "Google Chrome"
+    open location "%s"
+end tell
+EOD""" % (link))
 
     def do_r(self, check):
         print check
@@ -169,11 +203,32 @@ EOD""" % (urllib.quote(search)))
         print l[0]+l[1]
 
     def do_save(self, phrase):
-        dictionary[phrase] = self.lastline
+        commands[phrase] = self.lastline
         with open('commands.csv', 'a') as fp:
             fp.write(phrase + ',' + self.lastline + '\n')
 
+    def do_remind(self, reminder):
+        reminders[self.lastline] = reminder
+        with open('reminders.csv', 'a') as fp:
+            fp.write(self.lastline + ',' + reminder + '\n')
+
+    def do_tell(self, line):
+        if line in commands:
+            print "cmd: " + commands[line]
+        elif ('do_' + line.split()[0]) in dir(self):
+            print "code: do_" + line.split()[0]
+        else:
+            try:
+                eval(line)
+                print "py: " + line
+                return
+            except:
+                print "unknown: could be a fallback or shell"
+
     def onecmd(self, line):
+        if line in reminders:
+            print reminders[line]
+
         if line in commands:
             line = commands[line]
             print line
@@ -190,6 +245,9 @@ EOD""" % (urllib.quote(search)))
         return r
 
     def default(self, line):
+        if line == 'exit':
+            exit()
+
         try:
             print "py: " + str(eval(line))
             return
