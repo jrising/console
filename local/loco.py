@@ -159,6 +159,12 @@ EOD""" % (dictionary[where]))
 
         return apps
 
+    def do_figr(self, line):
+        parts = line.split(' ')
+        command = "find %s -name \"%s\" -exec grep \"%s\" {} \; -print" % (parts[0], parts[1], ' '.join(parts[2:]))
+        print command
+        os.system(command)
+
     def do_stan(self, cmd):
         """stan help: open up the stan reference manual."""
         os.system("open ~/Downloads/stan-reference-2.1.0.pdf")
@@ -245,8 +251,10 @@ EOD""" % (link))
         return r
 
     def default(self, line):
-        if line == 'exit':
+        if line == 'exit' or line == 'ex':
             exit()
+
+        print "Gosh, I wish I had access to `understand`."
 
         try:
             print "py: " + str(eval(line))

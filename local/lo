@@ -1,4 +1,4 @@
 #!/bin/bash
 
 cd ~/projects/console/local
-python colo.py $@
+python loco.py $@
