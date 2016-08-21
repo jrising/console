@@ -1,2 +1,3 @@
 phrase,line
-ssh dmas,term sds
+ssh dmas,term ssh dmas.berkeley.edu
+sds,term ssh dmas.berkeley.edu

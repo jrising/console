@@ -1,18 +1,25 @@
-import sys, os, cmd, csv, urllib, subprocess, psutil
+import sys, os, cmd, csv, urllib, subprocess, psutil, random, string
 from sandbox import Sandbox
+import status
+
+if sys.platform in ['linux', 'linux2']:
+    import x_server
+    local_server = x_server.XLocalServer()
+elif sys.platform == 'darwin':
+    import macos_server
+    local_server = macos_server.MacOSLocalServer()
+else:
+    import gui_server
+    local_server = gui_server.GUILocalServer()
 
 try:
-    from computer.local_server import LocalServer, LocalProcess
-    from computer.linux_server import RemoteLinuxProcess
-
-    local_server = LocalServer('localhost', 1, {})
-    local_command = local_server.run_command
-
-    has_computer = True
+    import keyring
 except:
-    print "computer module not found!  Suggest installing from http://github.com/jrising/computer"
-    local_command = os.system
-    has_computer = False
+    print "keyring not available: passwd will not save."
+
+## Record this instance
+status_id = status.register(status.getip(), 'loco')
+print "Status ID: " + status_id
 
 dictionary = {}
 commands = {}
@@ -73,12 +80,20 @@ class PersonalCmd(cmd.Cmd, object):
         os.chdir(path)
         self.reset_prompt()
 
+    def complete_cd(self, text, line, begidx, endidx):
+        results = []
+        fulldir, partfile = os.path.split(line.split()[1])
+        for filename in os.listdir(os.path.join(os.getcwd(), fulldir)):
+            if filename[:len(partfile)] == partfile:
+                if os.path.isdir(filename):
+                    results.append(filename + '/')
+                else:
+                    results.append(filename)
+
+        return results
+
     def do_pr(self, pid):
         """Start tracking a process by PID"""
-        if not has_computer:
-            print "Failed: computer module missing."
-            return
-
         if pid == '':
             for pid in psutil.pids():
                 proc = psutil.Process(pid)
@@ -115,7 +130,7 @@ class PersonalCmd(cmd.Cmd, object):
             for proc in liveprocs:
                 print proc, proc.is_running()
         else:
-            liveprocs.add(RemoteLinuxProcess(local_server, int(pid), None))
+            liveprocs.add(local_server.get_process(pid))
 
     def do_shell(self, command):
         """Responds to !<command> by executing shell."""
@@ -126,49 +141,64 @@ class PersonalCmd(cmd.Cmd, object):
         if command in dictionary:
             command = "cd " + dictionary[command]
 
-        os.system("""osascript <<EOD
-tell application "Terminal"
-    do script "%s"
-    activate
-end tell
-EOD""" % (command))
+        local_server.open_terminal("cd " + os.getcwd() + "; " + command)
 
     def do_ssh(self, where):
         """Ssh to a known location."""
         if where in dictionary:
-            os.system("""osascript <<EOD
-tell application "Terminal"
-    do script "ssh %s"
-    activate
-end tell
-EOD""" % (dictionary[where]))
+            local_server.open_terminal("ssh " + dictionary[where])
         else:
             print "Unrecognized: ssh: " + where
 
-    def do_open(self, app):
+    def do_passwd(self, line):
+        parts = line.split()
+        system = parts[0]
+        username = parts[1]
+
+        try:
+            # Is there already a password for this?
+            password = keyring.get_password(system, username)
+            if password:
+                print password
+                return
+        except:
+            pass
+
+        length = 13
+        chars = string.ascii_letters + string.digits + '!@#$%^&*()'
+        password = ''.join(random.choice(chars) for i in range(length))
+        keyring.set_password(system, username, password)
+        print password
+
+    def do_open(self, thing):
         """Open an application or a file, as with the Finder."""
-        if app[0] != '/':
-            app = "/Applications/" + app
-        os.system("open " + app)
+        local_server.open_thing(thing)
 
     def complete_open(self, text, line, begidx, endidx):
         apps = []
-        for app in os.listdir("/Applications"):
+        for app in local_server.list_applications():
             if app[:len(text)].lower() == text.lower():
                 apps.append(app)
 
         return apps
+
+    def do_figr(self, line):
+        parts = line.split(' ')
+        command = "find %s -name \"%s\" -exec grep \"%s\" {} \; -print" % (parts[0], parts[1], ' '.join(parts[2:]))
+        print command
+        os.system(command)
 
     def do_stan(self, cmd):
         """stan help: open up the stan reference manual."""
         os.system("open ~/Downloads/stan-reference-2.1.0.pdf")
 
     def do_goog(self, search):
-        os.system("""osascript <<EOD
-tell application "Google Chrome"
-    open location "http://www.google.com/search?q=%s"
-end tell
-EOD""" % (urllib.quote(search)))
+        local_server.open_url("http://www.google.com/search?q=" + urllib.quote(search))
+
+    def do_get(self, link):
+        if link in dictionary:
+            link = dictionary[link]
+        local_server.open_url(link)
 
     def do_get(self, link):
         if link in dictionary:
@@ -245,8 +275,10 @@ EOD""" % (link))
         return r
 
     def default(self, line):
-        if line == 'exit':
+        if line == 'exit' or line == 'ex':
             exit()
+
+        print "Gosh, I wish I had access to `understand`."
 
         try:
             print "py: " + str(eval(line))
