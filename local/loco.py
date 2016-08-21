@@ -1,5 +1,6 @@
-import sys, os, cmd, csv, urllib, subprocess, psutil
+import sys, os, cmd, csv, urllib, subprocess, psutil, random, string
 from sandbox import Sandbox
+import status
 
 if sys.platform in ['linux', 'linux2']:
     import x_server
@@ -10,6 +11,15 @@ elif sys.platform == 'darwin':
 else:
     import gui_server
     local_server = gui_server.GUILocalServer()
+
+try:
+    import keyring
+except:
+    print "keyring not available: passwd will not save."
+
+## Record this instance
+status_id = status.register(status.getip(), 'loco')
+print "Status ID: " + status_id
 
 dictionary = {}
 commands = {}
@@ -70,6 +80,18 @@ class PersonalCmd(cmd.Cmd, object):
         os.chdir(path)
         self.reset_prompt()
 
+    def complete_cd(self, text, line, begidx, endidx):
+        results = []
+        fulldir, partfile = os.path.split(line.split()[1])
+        for filename in os.listdir(os.path.join(os.getcwd(), fulldir)):
+            if filename[:len(partfile)] == partfile:
+                if os.path.isdir(filename):
+                    results.append(filename + '/')
+                else:
+                    results.append(filename)
+
+        return results
+
     def do_pr(self, pid):
         """Start tracking a process by PID"""
         if pid == '':
@@ -119,7 +141,7 @@ class PersonalCmd(cmd.Cmd, object):
         if command in dictionary:
             command = "cd " + dictionary[command]
 
-        local_server.open_terminal(command)
+        local_server.open_terminal("cd " + os.getcwd() + "; " + command)
 
     def do_ssh(self, where):
         """Ssh to a known location."""
@@ -127,6 +149,26 @@ class PersonalCmd(cmd.Cmd, object):
             local_server.open_terminal("ssh " + dictionary[where])
         else:
             print "Unrecognized: ssh: " + where
+
+    def do_passwd(self, line):
+        parts = line.split()
+        system = parts[0]
+        username = parts[1]
+
+        try:
+            # Is there already a password for this?
+            password = keyring.get_password(system, username)
+            if password:
+                print password
+                return
+        except:
+            pass
+
+        length = 13
+        chars = string.ascii_letters + string.digits + '!@#$%^&*()'
+        password = ''.join(random.choice(chars) for i in range(length))
+        keyring.set_password(system, username, password)
+        print password
 
     def do_open(self, thing):
         """Open an application or a file, as with the Finder."""

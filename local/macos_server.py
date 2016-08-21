@@ -27,5 +27,4 @@ EOD""" % (command))
 tell application "Google Chrome"
     open location "%s"
 end tell
-EOD""" % (url)
-
+EOD""" % (url))
