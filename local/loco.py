@@ -19,7 +19,8 @@ except:
 
 ## Record this instance
 status_id = status.register(status.getip(), 'loco')
-print "Status ID: " + status_id
+if status_id is not None:
+    print "Status ID: " + status_id
 
 dictionary = {}
 commands = {}
@@ -275,7 +276,7 @@ EOD""" % (link))
         return r
 
     def default(self, line):
-        if line == 'exit' or line == 'ex':
+        if line == 'exit' or line == 'ex' or line == "EOF":
             exit()
 
         print "Gosh, I wish I had access to `understand`."
@@ -296,9 +297,13 @@ EOD""" % (link))
                 print fallback + ": " + output
                 return
 
-        p = subprocess.Popen(line.split(), stdout=subprocess.PIPE)
-        output, errors = p.communicate()
-        print "sh: " + output
+        try:
+            p = subprocess.Popen(line.split(), stdout=subprocess.PIPE)
+            output, errors = p.communicate()
+            print "sh: " + output
+        except:
+            print "spotlight: " + line
+            os.system("osascript applescript/spotlight.scpt " + line)
 
     def completedefault(self, text, line, begidx, endidx):
         results = []

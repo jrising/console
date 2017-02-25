@@ -1,17 +1,23 @@
 import urllib, urllib2, re
 
 def doit(op, **kw):
-    kw['op'] = op
-    kw['pass'] = 'PASSWORD'
-    data = urllib.urlencode(kw)
-    req = urllib2.Request("http://console.existencia.org/ss/status.php", data)
-    response = urllib2.urlopen(req)
-    return response.read()
+    try:
+        kw['op'] = op
+        kw['pass'] = 'PASSWORD'
+        data = urllib.urlencode(kw)
+        req = urllib2.Request("http://console.existencia.org/ss/status.php", data)
+        response = urllib2.urlopen(req, timeout=5)
+        return response.read()
+    except:
+        print "Cannot perform status %s." % op
 
 def getip():
-    response = urllib2.urlopen('http://checkip.dyndns.com/')
-    data = str(response.read())
-    return re.compile(r'Address: (\d+\.\d+\.\d+\.\d+)').search(data).group(1)
+    try:
+        response = urllib2.urlopen('http://checkip.dyndns.com/')
+        data = str(response.read())
+        return re.compile(r'Address: (\d+\.\d+\.\d+\.\d+)').search(data).group(1)
+    except:
+        print "Cannot get IP address."
 
 def register(server, name):
     return doit('register', server=server, name=name)
